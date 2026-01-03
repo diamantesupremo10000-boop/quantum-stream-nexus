@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  # 1. Base de Datos (Persistencia)
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: complexpassword123
+      POSTGRES_DB: quantum_db
+    ports:
+      - "5432:5432"
+    networks:
+      - nexus-net
+
+  # 2. Bus de Mensajes (Sistema Nervioso)
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    networks:
+      - nexus-net
+
+  # 3. Backend A: El Motor de Cálculo (Rust)
+  rust-engine:
+    build: ./rust-engine
+    depends_on:
+      - redis
+    environment:
+      REDIS_URL: redis://redis:6379
+    networks:
+      - nexus-net
+
+  # 4. Backend B: API Gateway & WebSockets (Node/TS)
+  node-api:
+    build: ./node-api
+    ports:
+      - "4000:4000"
+    depends_on:
+      - redis
+      - postgres
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      PORT: 4000
+    networks:
+      - nexus-net
+
+  # 5. Frontend: Dashboard (Next.js)
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:4000
+    networks:
+      - nexus-net
+
+networks:
+  nexus-net:
+    driver: bridge
